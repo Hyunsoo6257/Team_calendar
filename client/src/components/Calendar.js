@@ -1,17 +1,20 @@
 import React, { useState } from "react";
 import dayjs from "dayjs";
+import Popup from "./Popup";
 
 const Calendar = () => {
   const today = dayjs();
   const [currentMonth, setCurrentMonth] = useState(today.month());
   const [currentYear, setCurrentYear] = useState(today.year());
   const [selectedDate, setSelectedDate] = useState(null);
+  const [showPopup, setShowPopup] = useState(false);
 
   const startDay = dayjs(new Date(currentYear, currentMonth, 1)).day();
   const daysInMonth = dayjs(new Date(currentYear, currentMonth + 1, 0)).date();
 
   const handleDateClick = (date) => {
     setSelectedDate(date);
+    setShowPopup(true);
   };
 
   const handlePrevMonth = () => {
@@ -30,6 +33,9 @@ const Calendar = () => {
     } else {
       setCurrentMonth(currentMonth + 1);
     }
+  };
+  const handleClosePopup = () => {
+    setShowPopup(false);
   };
 
   return (
@@ -79,6 +85,15 @@ const Calendar = () => {
           Find the available time
         </button>
       </div>
+
+      {showPopup && (
+        <Popup
+          selectedDate={dayjs(
+            new Date(currentYear, currentMonth, selectedDate)
+          ).format("DD.MM")}
+          handleClosePopup={handleClosePopup}
+        />
+      )}
     </div>
   );
 };
