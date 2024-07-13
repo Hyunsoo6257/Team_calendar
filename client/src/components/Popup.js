@@ -4,9 +4,11 @@ import Button from "../components/Button";
 const Popup = ({ selectedDate, handleClosePopup }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-      <div className="bg-white p-4 rounded-lg shadow-lg relative">
-        <div className="text-center mb-4">
-          <div className="text-lg font-bold mb-2">{selectedDate}</div>
+      <div className="bg-white p-4 rounded-lg shadow-lg relative bottom-28">
+        <div className="mb-4">
+          <div className="text-center text-lg font-bold mb-2">
+            {selectedDate}
+          </div>
           <div>Pick a color</div>
           <div className="flex justify-center space-x-2 my-2">
             <button className="w-6 h-6 bg-red-500 rounded-full"></button>
