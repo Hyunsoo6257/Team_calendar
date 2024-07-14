@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import dayjs from "dayjs";
 import Popup from "./Popup";
+import Result from "./Result";
 
 const Calendar = () => {
   const today = dayjs();
@@ -8,6 +9,7 @@ const Calendar = () => {
   const [currentYear, setCurrentYear] = useState(today.year());
   const [selectedDate, setSelectedDate] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
+  const [showResults, setShowResults] = useState(false);
 
   const startDay = dayjs(new Date(currentYear, currentMonth, 1)).day();
   const daysInMonth = dayjs(new Date(currentYear, currentMonth + 1, 0)).date();
@@ -37,9 +39,19 @@ const Calendar = () => {
   const handleClosePopup = () => {
     setShowPopup(false);
   };
+  const handleFindAvailableTime = () => {
+    setShowResults(true);
+  };
+
+  const dummyData = [
+    { date: "02/08", startTime: "14:00", endTime: "15:00" },
+    { date: "04/08", startTime: "15:00", endTime: "16:00" },
+    { date: "06/08", startTime: "18:00", endTime: "19:00" },
+  ];
 
   return (
     <div className="p-4 max-w-sm mx-auto bg-white rounded-xl shadow-md">
+      {/* Calendar header */}
       <div className="flex justify-between items-center mb-5">
         <button onClick={handlePrevMonth}>&lt;</button>
         <div>
@@ -47,6 +59,7 @@ const Calendar = () => {
         </div>
         <button onClick={handleNextMonth}>&gt;</button>
       </div>
+      {/* Calendar Day */}
       <div className="grid grid-cols-7 gap-1 text-center">
         {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((day) => (
           <div key={day} className="font-bold">
@@ -74,6 +87,7 @@ const Calendar = () => {
           </div>
         ))}
       </div>
+      {/* Calendar Footer */}
       <div className="mt-4 flex justify-between">
         <button
           className="bg-blue-500 text-white px-4 py-2 rounded"
@@ -81,17 +95,25 @@ const Calendar = () => {
         >
           Reset
         </button>
-        <button className="bg-blue-500 text-white px-4 py-2 rounded">
+        <button
+          className="bg-blue-500 text-white px-4 py-2 rounded"
+          onClick={handleFindAvailableTime}
+        >
           Find the available time
         </button>
       </div>
-
       {showPopup && (
         <Popup
           selectedDate={dayjs(
             new Date(currentYear, currentMonth, selectedDate)
           ).format("DD.MM")}
           handleClosePopup={handleClosePopup}
+        />
+      )}
+      {showResults && (
+        <Result
+          data={dummyData}
+          handleFindAvailableTime={handleFindAvailableTime}
         />
       )}
     </div>
