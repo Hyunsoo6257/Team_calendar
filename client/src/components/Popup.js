@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import TimeButton from "./TimeButton";
 
 const Popup = ({ selectedDate, handleClosePopup }) => {
@@ -39,6 +39,10 @@ const Popup = ({ selectedDate, handleClosePopup }) => {
         console.error("Error creating event details:", error);
         // Handle the error (e.g., show an error message)
       }
+    } else {
+      console.log("Selected color or times are not set");
+      console.log(selectedColor);
+      console.log(selectedTimes);
     }
   };
 

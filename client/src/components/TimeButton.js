@@ -1,17 +1,11 @@
-import React, { useState } from "react";
+import React from "react";
 
-const Button = ({ time }) => {
-  const [isActive, setIsActive] = useState(false);
-
-  const handleClick = () => {
-    setIsActive(!isActive);
-  };
-
+const TimeButton = ({ time, isSelected, onClick }) => {
   return (
     <button
-      onClick={handleClick}
+      onClick={onClick}
       className={`border p-1 rounded ${
-        isActive ? "bg-blue-500 text-white" : "bg-white text-blue-500"
+        isSelected ? "bg-blue-500 text-white" : "bg-white text-blue-500"
       }`}
     >
       {time}
@@ -19,4 +13,4 @@ const Button = ({ time }) => {
   );
 };
 
-export default Button;
+export default TimeButton;
