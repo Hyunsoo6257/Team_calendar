@@ -24,7 +24,7 @@ const Popup = ({ selectedDate, handleClosePopup }) => {
   const handleApply = async () => {
     if (selectedColor && selectedTimes.length > 0) {
       const eventDetails = selectedTimes.map((time) => ({
-        time: parseInt(time.split(":")[0]), // Assuming `time` is in "HH:mm" format
+        time: parseInt(time.split(":")[0], 10), // Assuming `time` is in "HH:mm" format
         date: selectedDate,
         color_id: selectedColor, // Assuming `selectedColor` is the color_id
       }));
