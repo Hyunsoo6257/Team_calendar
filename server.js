@@ -3,6 +3,7 @@ const express = require("express");
 const { createConnection } = require("typeorm");
 const bodyParser = require("body-parser");
 const path = require("path");
+const cors = require("cors");
 const setupRoutes = require("./routes/route");
 
 const app = express();
@@ -11,8 +12,13 @@ const port = 4000;
 // Middleware to parse JSON bodies
 app.use(bodyParser.json());
 
+app.use(cors());
+
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, "client/build")));
+
+// API routes
+setupRoutes(app);
 
 // Catch-all route to serve the React app
 app.get("*", (req, res) => {
@@ -23,9 +29,6 @@ app.get("*", (req, res) => {
 createConnection()
   .then(() => {
     console.log("Database connection established");
-
-    // Set up routes
-    setupRoutes(app);
 
     // Start the server
     app.listen(port, () => {

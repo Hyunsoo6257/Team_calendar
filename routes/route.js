@@ -31,6 +31,11 @@ module.exports = (app) => {
     const scheduleRepository = getRepository(EventDetail);
 
     try {
+      // eventDetails의 각 항목을 확인하여 올바른 형식인지 검증합니다.
+      eventDetails.forEach((detail) => {
+        detail.time = parseInt(detail.time, 10); // `time`을 `int`로 변환
+      });
+
       const eventDetailPromises = eventDetails.map((detail) => {
         const newEventDetail = scheduleRepository.create(detail);
         return scheduleRepository.save(newEventDetail);
