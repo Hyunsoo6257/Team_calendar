@@ -42,7 +42,22 @@ const Calendar = () => {
   const handleFindAvailableTime = () => {
     setShowResults(true);
   };
-
+  const handleReset = async () => {
+    try {
+      const response = await axios.post("/schedule/reset", {
+        user: "currentUser", // Replace with actual user identifier
+        date: dayjs(new Date(currentYear, currentMonth, selectedDate)).format(
+          "YYYY-MM-DD"
+        ),
+      });
+      if (response.status === 200) {
+        console.log("Schedule reset successfully");
+        setSelectedDate(null);
+      }
+    } catch (error) {
+      console.error("Error resetting schedule:", error.message);
+    }
+  };
   const dummyData = [
     { date: "02/08", startTime: "14:00", endTime: "15:00" },
     { date: "04/08", startTime: "15:00", endTime: "16:00" },
@@ -91,7 +106,7 @@ const Calendar = () => {
       <div className="mt-4 flex justify-between">
         <button
           className="bg-blue-500 text-white px-4 py-2 rounded"
-          onClick={() => setSelectedDate(null)}
+          onClick={handleReset}
         >
           Reset
         </button>
