@@ -12,8 +12,6 @@ const port = 4000;
 // Middleware to parse JSON bodies
 app.use(bodyParser.json());
 
-app.use(cors());
-
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, "client/build")));
 
@@ -29,7 +27,9 @@ app.get("*", (req, res) => {
 createConnection()
   .then(() => {
     console.log("Database connection established");
-
+    connection.query("PRAGMA foreign_keys=OFF");
+    connection.synchronize();
+    connection.query("PRAGMA foreign_keys=ON");
     // Start the server
     app.listen(port, () => {
       console.log(`Server is running on http://localhost:${port}`);
