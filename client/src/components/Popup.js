@@ -22,36 +22,31 @@ const Popup = ({ selectedDate, handleClosePopup }) => {
   };
 
   const handleApply = async () => {
-    if (selectedColor && selectedTimes.length > 0) {
-      const eventDetails = selectedTimes.map((time) => ({
-        time: parseInt(time.split(":")[0], 10), // Assuming `time` is in "HH:mm" format
-        date: selectedDate,
-        color_id: selectedColor, // Assuming `selectedColor` is the color_id
-      }));
+    const eventDetails = {
+      time: 6, // Assuming `time` is in "HH:mm" format
+      date: "2024-08-19",
+      color_id: 1, // Assuming `selectedColor` is the color_id
+    };
 
-      const payload = { eventDetails };
+    const payload = { eventDetails };
 
-      try {
-        const response = await createEvent(payload);
-        console.log("Event details created successfully:", response);
-        // Handle the success (e.g., close the popup, update the state, etc.)
-      } catch (error) {
-        console.error("Error creating event details:", error);
-        // Handle the error (e.g., show an error message)
-      }
-    } else {
-      console.log("Selected color or times are not set");
-      console.log(selectedColor);
-      console.log(selectedTimes);
+    try {
+      console.log(payload);
+      console.log("=What the fuck");
+      const response = await createEvent(payload);
+      console.log("Event details created successfully:", response);
+    } catch (error) {
+      console.error("Error creating event details:", error);
     }
   };
 
   async function createEvent(eventDetail) {
     try {
-      const response = await fetch("/schedule/create", {
+      const response = await fetch("http://localhost:4000/schedule/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
         },
         body: JSON.stringify(eventDetail),
       });
@@ -59,7 +54,6 @@ const Popup = ({ selectedDate, handleClosePopup }) => {
       if (!response.ok) {
         throw new Error("Network response was not ok " + response.statusText);
       }
-
       const data = await response.json();
       return data;
     } catch (error) {
