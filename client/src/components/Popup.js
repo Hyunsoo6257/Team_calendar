@@ -1,9 +1,57 @@
 import React, { useEffect, useState } from "react";
 import TimeButton from "./TimeButton";
+import Cookies from "js-cookie";
 
 const Popup = ({ selectedDate, handleClosePopup }) => {
   const [selectedColor, setSelectedColor] = useState(null);
   const [selectedTimes, setSelectedTimes] = useState([]);
+  const [usedColors, setUsedColors] = useState([]);
+  const [isColorLocked, setIsColorLocked] = useState(false);
+  const [existingTimes, setExistingTimes] = useState([]);
+
+  useEffect(() => {
+    const savedColor = Cookies.get("userPreferredColor");
+    if (savedColor) {
+      setSelectedColor(savedColor);
+      setIsColorLocked(true);
+    }
+
+    const fetchData = async () => {
+      try {
+        const colorResponse = await fetch("http://localhost:4000/colors/used", {
+          credentials: "include",
+        });
+        if (colorResponse.ok) {
+          const colors = await colorResponse.json();
+          setUsedColors(colors);
+        }
+
+        const scheduleResponse = await fetch(
+          `http://localhost:4000/schedules?date=${selectedDate}`,
+          {
+            credentials: "include",
+          }
+        );
+        if (scheduleResponse.ok) {
+          const schedules = await scheduleResponse.json();
+          const userTimes = schedules
+            .filter((schedule) => schedule.color === savedColor)
+            .map((schedule) => schedule.time);
+          setSelectedTimes(userTimes);
+
+          const allTimes = schedules.map((schedule) => ({
+            time: schedule.time,
+            color: schedule.color,
+          }));
+          setExistingTimes(allTimes);
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
+
+    fetchData();
+  }, [selectedDate]);
 
   const colors = [
     { name: "red", className: "bg-red-500" },
@@ -13,6 +61,13 @@ const Popup = ({ selectedDate, handleClosePopup }) => {
     { name: "purple", className: "bg-purple-500" },
   ];
 
+  const handleColorSelect = (colorName) => {
+    if (isColorLocked) return;
+    setSelectedColor(colorName);
+    Cookies.set("userPreferredColor", colorName, { expires: 7 });
+    setIsColorLocked(true);
+  };
+
   const handleTimeClick = (time) => {
     if (selectedTimes.includes(time)) {
       setSelectedTimes(selectedTimes.filter((t) => t !== time));
@@ -21,46 +76,106 @@ const Popup = ({ selectedDate, handleClosePopup }) => {
     }
   };
 
-  const handleApply = async () => {
-    const eventDetails = {
-      time: 6, // Assuming `time` is in "HH:mm" format
-      date: "2024-08-19",
-      color_id: 1, // Assuming `selectedColor` is the color_id
-    };
+  const handleReset = () => {
+    setSelectedTimes([]);
+  };
 
-    const payload = { eventDetails };
+  const handleApply = async () => {
+    if (!selectedColor) {
+      console.error("No color selected");
+      return;
+    }
 
     try {
-      console.log(payload);
-      console.log("=What the fuck");
-      const response = await createEvent(payload);
-      console.log("Event details created successfully:", response);
+      if (selectedTimes.length === 0) {
+        console.log("Sending delete request for:", {
+          date: selectedDate,
+          color: selectedColor,
+        }); // Debug log
+
+        const response = await fetch("http://localhost:4000/schedule/delete", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            date: selectedDate,
+            color: selectedColor,
+          }),
+          credentials: "include",
+        });
+
+        const data = await response.json(); // Get the response data
+        console.log("Delete response:", data); // Debug log
+
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to delete schedules");
+        }
+
+        handleClosePopup();
+      } else {
+        const eventDetails = selectedTimes.map((time) => ({
+          time: time,
+          date: selectedDate,
+          color: selectedColor,
+        }));
+
+        for (const eventDetail of eventDetails) {
+          await createEvent(eventDetail);
+        }
+      }
     } catch (error) {
-      console.error("Error creating event details:", error);
+      console.error("Error updating schedules:", error);
+      alert(`Failed to update schedule: ${error.message}`);
     }
   };
 
   async function createEvent(eventDetail) {
     try {
+      console.log("Request payload:", eventDetail);
+
       const response = await fetch("http://localhost:4000/schedule/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
         },
         body: JSON.stringify(eventDetail),
+        credentials: "include",
       });
 
-      if (!response.ok) {
-        throw new Error("Network response was not ok " + response.statusText);
-      }
       const data = await response.json();
+      console.log("Raw server response:", data);
+
+      if (!response.ok) {
+        throw new Error(data.message || `Server error: ${response.statusText}`);
+      }
+
       return data;
     } catch (error) {
-      console.error("There was a problem with the fetch operation:", error);
+      console.error("Detailed fetch error:", error);
       throw error;
     }
   }
+
+  const renderColorButton = (color, index) => {
+    const isUsed = usedColors.includes(color.name);
+    const isCurrentUserColor = selectedColor === color.name;
+    const isDisabled = isColorLocked ? !isCurrentUserColor : isUsed;
+
+    return (
+      <button
+        key={index}
+        className={`
+          w-6 h-6 rounded-full
+          ${color.className}
+          ${isCurrentUserColor ? "ring-4 ring-blue-500" : ""}
+          ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}
+        `}
+        onClick={() => !isDisabled && handleColorSelect(color.name)}
+        disabled={isDisabled}
+      />
+    );
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
@@ -71,32 +186,27 @@ const Popup = ({ selectedDate, handleClosePopup }) => {
           </div>
           <div>Pick a color</div>
           <div className="flex justify-center space-x-2 my-2">
-            {colors.map((color, index) => (
-              <button
-                key={index}
-                className={`w-6 h-6 rounded-full ${color.className} ${
-                  selectedColor === color.name ? "ring-4 ring-blue-500" : ""
-                }`}
-                onClick={() => setSelectedColor(color.name)}
-              ></button>
-            ))}
+            {colors.map((color, index) => renderColorButton(color, index))}
           </div>
           <div>Select the time</div>
           <div className="grid grid-cols-5 gap-2 my-2">
-            {[...Array(25 - 6 + 1)].map((_, i) => (
-              <TimeButton
-                key={i + 6}
-                time={`${i + 6}:00`}
-                isSelected={selectedTimes.includes(`${i + 6}:00`)}
-                onClick={() => handleTimeClick(`${i + 6}:00`)}
-              />
-            ))}
+            {[...Array(25 - 6 + 1)].map((_, i) => {
+              const time = `${i + 6}:00`;
+              return (
+                <TimeButton
+                  key={i + 6}
+                  time={time}
+                  isSelected={selectedTimes.includes(time)}
+                  onClick={() => handleTimeClick(time)}
+                />
+              );
+            })}
           </div>
         </div>
         <div className="flex justify-between">
           <button
             className="bg-blue-500 text-white px-4 py-2 rounded"
-            onClick={handleClosePopup}
+            onClick={handleReset}
           >
             Reset
           </button>

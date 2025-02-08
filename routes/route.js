@@ -1,22 +1,11 @@
 const express = require("express");
-const { getRepository } = require("typeorm");
 const EventDetail = require("../entity/EventDetail");
+const Calendar = require("../entity/Calendar");
 
-module.exports = (app) => {
-  // GET /schedules - Retrieve all schedules
-  app.get("/schedules", async (req, res) => {
-    const scheduleRepository = getRepository(EventDetail);
-    try {
-      const schedules = await scheduleRepository.find();
-      res.status(200).json(schedules);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
+module.exports = (app, AppDataSource) => {
   // POST /schedules/reset - Reset all schedules
   app.post("/schedules/reset", async (req, res) => {
-    const scheduleRepository = getRepository(EventDetail);
+    const scheduleRepository = AppDataSource.getRepository(EventDetail);
     try {
       await scheduleRepository.clear();
       res.status(200).json({ message: "All schedules reset successfully" });
@@ -27,66 +16,46 @@ module.exports = (app) => {
 
   // POST /schedule/create - Create a new schedule
   app.post("/schedule/create", async (req, res) => {
-    const { eventDetails } = req.body;
-    const scheduleRepository = getRepository(EventDetail);
+    const scheduleRepository = AppDataSource.getRepository(EventDetail);
 
     try {
-      // eventDetails의 각 항목을 확인하여 올바른 형식인지 검증합니다.
-      eventDetails.forEach((detail) => {
-        detail.time = parseInt(detail.time, 10); // `time`을 `int`로 변환
-      });
+      const detail = req.body;
 
-      const eventDetailPromises = eventDetails.map((detail) => {
-        const newEventDetail = scheduleRepository.create(detail);
-        return scheduleRepository.save(newEventDetail);
-      });
-
-      await Promise.all(eventDetailPromises);
-
-      res.status(200).json({ message: "Event details created successfully" });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // PUT /schedule/update - Update an existing schedule
-  app.put("/schedule/update", async (req, res) => {
-    const { user, date, unavailableTimes } = req.body;
-    const scheduleRepository = getRepository(EventDetail);
-
-    try {
-      const existingSchedule = await scheduleRepository.findOne({
-        where: { user, date },
-      });
-      if (existingSchedule) {
-        existingSchedule.unavailableTimes = unavailableTimes;
-        await scheduleRepository.save(existingSchedule);
-        res.status(200).json({ message: "Schedule updated successfully" });
-      } else {
-        res.status(404).json({ message: "Schedule not found" });
+      // 입력값 검증
+      if (!detail || !detail.time || !detail.date || !detail.color) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing required fields",
+          receivedData: detail,
+        });
       }
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  });
 
-  // POST /schedule/reset - Reset a schedule
-  app.post("/schedule/reset", async (req, res) => {
-    const { user, date } = req.body;
-    const scheduleRepository = getRepository(EventDetail);
+      const newEventDetail = scheduleRepository.create({
+        time: detail.time,
+        date: detail.date,
+        color: detail.color,
+      });
 
-    try {
-      await scheduleRepository.delete({ user, date });
-      res.status(200).json({ message: "Schedule reset successfully" });
+      const savedEvent = await scheduleRepository.save(newEventDetail);
+
+      res.status(200).json({
+        success: true,
+        message: "Event detail created successfully",
+        data: savedEvent,
+      });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      console.error("Schedule creation error:", error.message);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Internal server error",
+      });
     }
   });
 
   // GET /schedule/available - Calculate available time slots for all members
   app.get("/schedule/available", async (req, res) => {
     const { date } = req.query;
-    const scheduleRepository = getRepository(EventDetail);
+    const scheduleRepository = AppDataSource.getRepository(EventDetail);
 
     try {
       const schedules = await scheduleRepository.find({ where: { date } });
@@ -97,6 +66,137 @@ module.exports = (app) => {
       res.status(200).json(availableTimes);
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /colors/used - Get all used colors
+  app.get("/colors/used", async (req, res) => {
+    const scheduleRepository = AppDataSource.getRepository(EventDetail);
+    try {
+      const events = await scheduleRepository.find();
+      const usedColors = [...new Set(events.map((event) => event.color))]; // 중복 제거
+      res.status(200).json(usedColors);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /schedules - Get schedules for a specific date
+  app.get("/schedules", async (req, res) => {
+    const { date } = req.query;
+    const scheduleRepository = AppDataSource.getRepository(EventDetail);
+
+    try {
+      const schedules = await scheduleRepository.find({
+        where: { date },
+        select: ["time", "color"],
+      });
+      res.status(200).json(schedules);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // DELETE /schedule/delete - Delete schedules for a specific color and date
+  app.delete("/schedule/delete", async (req, res) => {
+    const scheduleRepository = AppDataSource.getRepository(EventDetail);
+    const { date, color } = req.body;
+
+    try {
+      console.log("Attempting to delete schedules:", { date, color }); // Debug log
+
+      if (!date || !color) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing required fields: date and color required",
+        });
+      }
+
+      const result = await scheduleRepository.delete({
+        date: date,
+        color: color,
+      });
+
+      console.log("Delete result:", result); // Debug log
+
+      res.status(200).json({
+        success: true,
+        message: "Schedules deleted successfully",
+        result: result,
+      });
+    } catch (error) {
+      console.error("Schedule deletion error:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Internal server error",
+      });
+    }
+  });
+
+  // Create new calendar
+  app.post("/calendar/create", async (req, res) => {
+    const calendarRepository = AppDataSource.getRepository(Calendar);
+
+    try {
+      // Generate unique share code
+      const shareCode = Math.random().toString(36).substring(2, 8);
+
+      const newCalendar = calendarRepository.create({
+        shareCode: shareCode,
+        userCount: 1,
+      });
+
+      const savedCalendar = await calendarRepository.save(newCalendar);
+
+      res.status(200).json({
+        success: true,
+        shareCode: shareCode,
+        calendarId: savedCalendar.id,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  });
+
+  // Join existing calendar
+  app.post("/calendar/join/:shareCode", async (req, res) => {
+    const { shareCode } = req.params;
+    const calendarRepository = AppDataSource.getRepository(Calendar);
+
+    try {
+      const calendar = await calendarRepository.findOne({
+        where: { shareCode },
+      });
+
+      if (!calendar) {
+        return res.status(404).json({
+          success: false,
+          message: "Calendar not found",
+        });
+      }
+
+      if (calendar.userCount >= 5) {
+        return res.status(400).json({
+          success: false,
+          message: "Calendar has reached maximum number of users",
+        });
+      }
+
+      calendar.userCount += 1;
+      await calendarRepository.save(calendar);
+
+      res.status(200).json({
+        success: true,
+        calendarId: calendar.id,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
     }
   });
 

@@ -1,7 +1,6 @@
-require("reflect-metadata");
 const express = require("express");
-const { createConnection } = require("typeorm");
-const bodyParser = require("body-parser");
+const { DataSource } = require("typeorm");
+
 const path = require("path");
 const cors = require("cors");
 const setupRoutes = require("./routes/route");
@@ -9,30 +8,34 @@ const setupRoutes = require("./routes/route");
 const app = express();
 const port = 4000;
 
-// Middleware to parse JSON bodies
-app.use(bodyParser.json());
+const AppDataSource = new DataSource({
+  type: "sqlite",
+  database: "database.sqlite",
+  entities: ["entity/*.js"],
+  synchronize: true,
+  logging: true,
+});
+
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
+app.use(express.json());
 
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, "client/build")));
 
-// API routes
-setupRoutes(app);
-
-// Catch-all route to serve the React app
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "client/build", "index.html"));
-});
-
-// Establish database connection and start the server
-createConnection()
+AppDataSource.initialize()
   .then(() => {
-    console.log("Database connection established");
-    connection.query("PRAGMA foreign_keys=OFF");
-    connection.synchronize();
-    connection.query("PRAGMA foreign_keys=ON");
-    // Start the server
+    console.log("Database connection established.");
+    setupRoutes(app, AppDataSource);
     app.listen(port, () => {
       console.log(`Server is running on http://localhost:${port}`);
     });
   })
-  .catch((error) => console.log("Database connection error: ", error));
+  .catch((err) => {
+    console.error("Error during Data Source initialization:", err);
+  });

@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import dayjs from "dayjs";
 import Popup from "./Popup";
-import Result from "./Result";
 
 const Calendar = () => {
   const today = dayjs();
@@ -10,6 +9,7 @@ const Calendar = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
 
   const startDay = dayjs(new Date(currentYear, currentMonth, 1)).day();
   const daysInMonth = dayjs(new Date(currentYear, currentMonth + 1, 0)).date();
@@ -42,27 +42,26 @@ const Calendar = () => {
   const handleFindAvailableTime = () => {
     setShowResults(true);
   };
-  // const handleReset = async () => {
-  //   try {
-  //     const response = await axios.post("/schedule/reset", {
-  //       user: "currentUser", // Replace with actual user identifier
-  //       date: dayjs(new Date(currentYear, currentMonth, selectedDate)).format(
-  //         "YYYY-MM-DD"
-  //       ),
-  //     });
-  //     if (response.status === 200) {
-  //       console.log("Schedule reset successfully");
-  //       setSelectedDate(null);
-  //     }
-  //   } catch (error) {
-  //     console.error("Error resetting schedule:", error.message);
-  //   }
-  // };
-  const dummyData = [
-    { date: "02/08", startTime: "14:00", endTime: "15:00" },
-    { date: "04/08", startTime: "15:00", endTime: "16:00" },
-    { date: "06/08", startTime: "18:00", endTime: "19:00" },
-  ];
+  const handleShare = async () => {
+    try {
+      const response = await fetch("http://localhost:4000/calendar/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const shareUrl = `${window.location.origin}/calendar/${data.shareCode}`;
+        setShareUrl(shareUrl);
+      }
+    } catch (error) {
+      console.error("Error creating share link:", error);
+    }
+  };
 
   return (
     <div className="p-4 max-w-sm mx-auto bg-white rounded-xl shadow-md">
@@ -106,9 +105,9 @@ const Calendar = () => {
       <div className="mt-4 flex justify-between">
         <button
           className="bg-blue-500 text-white px-4 py-2 rounded"
-          // onClick={handleReset}
+          onClick={handleShare}
         >
-          Reset
+          Share Calendar
         </button>
         <button
           className="bg-blue-500 text-white px-4 py-2 rounded"
@@ -125,11 +124,49 @@ const Calendar = () => {
           handleClosePopup={handleClosePopup}
         />
       )}
-      {showResults && (
+      {/* {showResults && (
         <Result
           data={dummyData}
           handleFindAvailableTime={handleFindAvailableTime}
         />
+      )} */}
+
+      {shareUrl && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+          <div className="bg-white p-4 rounded-lg shadow-lg relative">
+            <div className="mb-4">
+              <div className="text-center text-lg font-bold mb-4">
+                Share Calendar
+              </div>
+              <p className="text-center mb-4">
+                Share this link with others (max 5 people)
+              </p>
+              <input
+                type="text"
+                value={shareUrl}
+                readOnly
+                className="border p-2 w-full mb-4"
+              />
+              <div className="flex justify-center">
+                <button
+                  className="bg-blue-500 text-white px-4 py-2 rounded"
+                  onClick={() => {
+                    navigator.clipboard.writeText(shareUrl);
+                    setShareUrl(""); // Close the popup after copying
+                  }}
+                >
+                  Copy Link
+                </button>
+              </div>
+            </div>
+            <button
+              className="absolute top-2 right-2 text-gray-500"
+              onClick={() => setShareUrl("")}
+            >
+              &times;
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

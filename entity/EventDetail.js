@@ -11,20 +11,23 @@ module.exports = new EntitySchema({
       generated: true,
     },
     time: {
-      type: "int",
+      type: "varchar",
     },
     date: {
-      type: "date",
+      type: "text",
     },
-    color_id: {
+    color: {
+      type: "varchar",
+    },
+    calendar_id: {
       type: "int",
     },
   },
   relations: {
-    color: {
-      target: "Color",
+    calendar: {
+      target: "Calendar",
       type: "many-to-one",
-      joinColumn: { name: "color_id" },
+      joinColumn: { name: "calendar_id" },
       inverseSide: "eventDetails",
     },
   },
