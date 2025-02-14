@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import dayjs from "dayjs";
 import Popup from "./Popup";
+import Cookies from "js-cookie";
 
 const Calendar = () => {
   const today = dayjs();
@@ -10,13 +11,46 @@ const Calendar = () => {
   const [showPopup, setShowPopup] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
+  const [calendarId, setCalendarId] = useState(null);
 
   const startDay = dayjs(new Date(currentYear, currentMonth, 1)).day();
   const daysInMonth = dayjs(new Date(currentYear, currentMonth + 1, 0)).date();
 
+  useEffect(() => {
+    // 저장된 캘린더 ID가 있으면 그걸 사용
+    const savedCalendarId = Cookies.get("calendarId");
+    console.log("Initial cookie value:", savedCalendarId);
+
+    if (savedCalendarId) {
+      setCalendarId(Number(savedCalendarId));
+      console.log("Using saved calendarId:", savedCalendarId);
+    } else {
+      // 없으면 기본 캘린더 가져오기
+      fetch("/calendar/default")
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            console.log("Got new calendarId:", data.calendarId);
+            Cookies.set("calendarId", String(data.calendarId), { expires: 7 });
+            setCalendarId(Number(data.calendarId));
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching default calendar:", error);
+        });
+    }
+  }, []);
+
   const handleDateClick = (date) => {
-    setSelectedDate(date);
+    // 날짜 문자열 직접 생성
+    const formattedDate = `${currentYear}-${String(currentMonth + 1).padStart(
+      2,
+      "0"
+    )}-${String(date).padStart(2, "0")}`;
+
+    setSelectedDate(formattedDate);
     setShowPopup(true);
+    console.log("Selected date:", formattedDate); // 디버깅용
   };
 
   const handlePrevMonth = () => {
@@ -44,7 +78,19 @@ const Calendar = () => {
   };
   const handleShare = async () => {
     try {
-      const response = await fetch("http://localhost:4000/calendar/create", {
+      const data = await handleCreateNewCalendar();
+      if (data.success) {
+        const shareUrl = `${window.location.origin}/calendar/${data.shareCode}`;
+        setShareUrl(shareUrl);
+      }
+    } catch (error) {
+      console.error("Error sharing calendar:", error);
+    }
+  };
+
+  const handleCreateNewCalendar = async () => {
+    try {
+      const response = await fetch("/calendar/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -53,18 +99,30 @@ const Calendar = () => {
       });
 
       const data = await response.json();
+      console.log("Create calendar response:", data); // 디버깅용
 
       if (data.success) {
-        const shareUrl = `${window.location.origin}/calendar/${data.shareCode}`;
-        setShareUrl(shareUrl);
+        Cookies.set("calendarId", String(data.calendarId), { expires: 7 });
+        setCalendarId(Number(data.calendarId));
+        return data;
       }
     } catch (error) {
-      console.error("Error creating share link:", error);
+      console.error("Error creating new calendar:", error);
+      throw error;
     }
   };
 
   return (
     <div className="p-4 max-w-sm mx-auto bg-white rounded-xl shadow-md">
+      {/* Create New Calendar 버튼 */}
+      <div className="mb-4 flex justify-end">
+        <button
+          className="bg-green-500 text-white px-4 py-2 rounded"
+          onClick={handleCreateNewCalendar}
+        >
+          Create New Calendar
+        </button>
+      </div>
       {/* Calendar header */}
       <div className="flex justify-between items-center mb-5">
         <button onClick={handlePrevMonth}>&lt;</button>
@@ -87,7 +145,9 @@ const Calendar = () => {
           <div
             key={i + 1}
             className={`p-2 cursor-pointer ${
-              selectedDate === i + 1 ? "bg-blue-200 rounded" : ""
+              selectedDate && dayjs(selectedDate).format("D") === String(i + 1)
+                ? "bg-blue-200 rounded"
+                : ""
             } ${
               today.date() === i + 1 &&
               today.month() === currentMonth &&
@@ -116,20 +176,19 @@ const Calendar = () => {
           Find the available time
         </button>
       </div>
-      {showPopup && (
+      {showPopup && selectedDate && calendarId && !isNaN(calendarId) && (
         <Popup
-          selectedDate={dayjs(
-            new Date(currentYear, currentMonth, selectedDate)
-          ).format("DD.MM")}
+          selectedDate={selectedDate}
           handleClosePopup={handleClosePopup}
+          calendarId={calendarId}
         />
       )}
-      {/* {showResults && (
-        <Result
-          data={dummyData}
-          handleFindAvailableTime={handleFindAvailableTime}
-        />
-      )} */}
+      {/* 디버깅용 */}
+      {console.log("Popup conditions:", {
+        showPopup,
+        selectedDate,
+        calendarId,
+      })}
 
       {shareUrl && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">

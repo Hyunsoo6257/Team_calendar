@@ -1,13 +1,19 @@
 import React, { useEffect, useState } from "react";
 import TimeButton from "./TimeButton";
 import Cookies from "js-cookie";
+import dayjs from "dayjs";
 
-const Popup = ({ selectedDate, handleClosePopup }) => {
+const Popup = ({ selectedDate, handleClosePopup, calendarId }) => {
+  console.log("Popup received calendarId:", calendarId); // 디버깅용
+
   const [selectedColor, setSelectedColor] = useState(null);
   const [selectedTimes, setSelectedTimes] = useState([]);
   const [usedColors, setUsedColors] = useState([]);
   const [isColorLocked, setIsColorLocked] = useState(false);
   const [existingTimes, setExistingTimes] = useState([]);
+
+  // 날짜 포맷 변경
+  const formattedDate = dayjs(selectedDate).format("YYYY-MM-DD");
 
   useEffect(() => {
     const savedColor = Cookies.get("userPreferredColor");
@@ -18,7 +24,7 @@ const Popup = ({ selectedDate, handleClosePopup }) => {
 
     const fetchData = async () => {
       try {
-        const colorResponse = await fetch("http://localhost:4000/colors/used", {
+        const colorResponse = await fetch("/colors/used", {
           credentials: "include",
         });
         if (colorResponse.ok) {
@@ -27,7 +33,7 @@ const Popup = ({ selectedDate, handleClosePopup }) => {
         }
 
         const scheduleResponse = await fetch(
-          `http://localhost:4000/schedules?date=${selectedDate}`,
+          `/schedules?date=${formattedDate}&calendarId=${calendarId}`,
           {
             credentials: "include",
           }
@@ -51,7 +57,7 @@ const Popup = ({ selectedDate, handleClosePopup }) => {
     };
 
     fetchData();
-  }, [selectedDate]);
+  }, [formattedDate, calendarId]);
 
   const colors = [
     { name: "red", className: "bg-red-500" },
@@ -89,18 +95,19 @@ const Popup = ({ selectedDate, handleClosePopup }) => {
     try {
       if (selectedTimes.length === 0) {
         console.log("Sending delete request for:", {
-          date: selectedDate,
+          date: formattedDate,
           color: selectedColor,
         }); // Debug log
 
-        const response = await fetch("http://localhost:4000/schedule/delete", {
+        const response = await fetch("/schedule/delete", {
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            date: selectedDate,
+            date: formattedDate,
             color: selectedColor,
+            calendarId: calendarId,
           }),
           credentials: "include",
         });
@@ -116,8 +123,9 @@ const Popup = ({ selectedDate, handleClosePopup }) => {
       } else {
         const eventDetails = selectedTimes.map((time) => ({
           time: time,
-          date: selectedDate,
+          date: formattedDate,
           color: selectedColor,
+          calendarId: calendarId,
         }));
 
         for (const eventDetail of eventDetails) {
@@ -130,16 +138,24 @@ const Popup = ({ selectedDate, handleClosePopup }) => {
     }
   };
 
-  async function createEvent(eventDetail) {
+  const createEvent = async (eventDetail) => {
+    if (!calendarId || isNaN(calendarId)) {
+      console.error("Invalid calendarId:", calendarId);
+      return;
+    }
+
     try {
       console.log("Request payload:", eventDetail);
 
-      const response = await fetch("http://localhost:4000/schedule/create", {
+      const response = await fetch("/schedule/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(eventDetail),
+        body: JSON.stringify({
+          ...eventDetail,
+          calendarId: Number(calendarId), // 명시적으로 숫자로 변환
+        }),
         credentials: "include",
       });
 
@@ -155,7 +171,7 @@ const Popup = ({ selectedDate, handleClosePopup }) => {
       console.error("Detailed fetch error:", error);
       throw error;
     }
-  }
+  };
 
   const renderColorButton = (color, index) => {
     const isUsed = usedColors.includes(color.name);
@@ -182,7 +198,7 @@ const Popup = ({ selectedDate, handleClosePopup }) => {
       <div className="bg-white p-4 rounded-lg shadow-lg relative bottom-28">
         <div className="mb-4">
           <div className="text-center text-lg font-bold mb-2">
-            {selectedDate}
+            {formattedDate}
           </div>
           <div>Pick a color</div>
           <div className="flex justify-center space-x-2 my-2">
