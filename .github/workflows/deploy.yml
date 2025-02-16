@@ -1,0 +1,44 @@
+name: Deploy to AWS
+on:
+  push:
+    branches: [main] # main 브랜치에 push할 때 실행
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. 코드 체크아웃
+      - uses: actions/checkout@v2
+
+      # 2. Node.js 설정
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "18"
+
+      # 3. 의존성 설치 및 빌드
+      - name: Install dependencies
+        run: |
+          npm install
+          cd client && npm install && npm run build
+          cd ..
+
+      # 4. AWS 자격 증명 설정
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-2
+
+      # 5. Elastic Beanstalk 배포
+      - name: Deploy to EB
+        uses: einaregilsson/beanstalk-deploy@v21
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: time4team
+          environment_name: time4team-env
+          region: ap-southeast-2
+          version_label: ${{ github.sha }}
+          deployment_package: deploy.zip

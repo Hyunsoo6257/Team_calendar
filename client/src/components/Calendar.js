@@ -16,6 +16,11 @@ const Calendar = () => {
   const startDay = dayjs(new Date(currentYear, currentMonth, 1)).day();
   const daysInMonth = dayjs(new Date(currentYear, currentMonth + 1, 0)).date();
 
+  const API_URL =
+    process.env.NODE_ENV === "production"
+      ? "http://time4team-env.eba-2mxpvpsk.ap-southeast-2.elasticbeanstalk.com" // 배포 환경
+      : process.env.REACT_APP_API_URL; // 개발 환경
+
   useEffect(() => {
     // 저장된 캘린더 ID가 있으면 그걸 사용
     const savedCalendarId = Cookies.get("calendarId");
@@ -25,8 +30,9 @@ const Calendar = () => {
       setCalendarId(Number(savedCalendarId));
       console.log("Using saved calendarId:", savedCalendarId);
     } else {
-      // 없으면 기본 캘린더 가져오기
-      fetch("/calendar/default")
+      fetch(`${API_URL}/calendar/default`, {
+        credentials: "include",
+      })
         .then((response) => response.json())
         .then((data) => {
           if (data.success) {
@@ -90,7 +96,7 @@ const Calendar = () => {
 
   const handleCreateNewCalendar = async () => {
     try {
-      const response = await fetch("/calendar/create", {
+      const response = await fetch(`${API_URL}/calendar/create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
