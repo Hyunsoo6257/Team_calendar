@@ -55,12 +55,13 @@ AppDataSource.initialize()
 
     // 기본 캘린더 확인
     let defaultCalendar = await calendarRepository.findOne({
-      where: { shareCode: "TEST123" },
+      where: { id: 1 }, // id가 1인 캘린더를 기본 캘린더로 사용
     });
 
     // 없으면 생성
     if (!defaultCalendar) {
       defaultCalendar = calendarRepository.create({
+        id: 1, // id를 명시적으로 1로 설정
         shareCode: "TEST123",
         userCount: 1,
         maxUsers: 5,

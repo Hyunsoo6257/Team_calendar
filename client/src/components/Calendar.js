@@ -22,28 +22,31 @@ const Calendar = () => {
       : process.env.REACT_APP_API_URL; // 개발 환경
 
   useEffect(() => {
-    // 저장된 캘린더 ID가 있으면 그걸 사용
-    const savedCalendarId = Cookies.get("calendarId");
-    console.log("Initial cookie value:", savedCalendarId);
+    // 필요한 정보 가져오기
+    const savedCalendarId = Cookies.get("calendarId"); // 쿠키에서 ID 확인
+    const pathParts = window.location.pathname.split("/"); // URL 경로 분리
+    const shareCode = pathParts[2]; // shareCode 추출 (/calendar/TEST123 형식)
 
-    if (savedCalendarId) {
-      setCalendarId(Number(savedCalendarId));
-      console.log("Using saved calendarId:", savedCalendarId);
-    } else {
-      fetch(`${API_URL}/calendar/default`, {
+    // 조건 1: Share URL로 접속한 경우
+    if (shareCode) {
+      fetch(`${API_URL}/calendar/byShareCode/${shareCode}`, {
         credentials: "include",
       })
         .then((response) => response.json())
         .then((data) => {
           if (data.success) {
-            console.log("Got new calendarId:", data.calendarId);
             Cookies.set("calendarId", String(data.calendarId), { expires: 7 });
             setCalendarId(Number(data.calendarId));
           }
-        })
-        .catch((error) => {
-          console.error("Error fetching default calendar:", error);
         });
+    }
+    // 조건 2: 일반 접속 + 쿠키가 있는 경우
+    else if (savedCalendarId) {
+      setCalendarId(Number(savedCalendarId));
+    }
+    // 조건 3: 처음 접속 (쿠키도 없고 share URL도 아닌 경우)
+    else {
+      setCalendarId(1); // 기본 캘린더(id: 1) 사용
     }
   }, []);
 
