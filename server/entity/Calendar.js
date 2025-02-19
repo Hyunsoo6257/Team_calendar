@@ -25,6 +25,10 @@ module.exports = new EntitySchema({
       type: "timestamp",
       createDate: true,
     },
+    availableTimes: {
+      type: "text",
+      nullable: true,
+    },
   },
   relations: {
     eventDetails: {

@@ -19,16 +19,15 @@ module.exports = new EntitySchema({
     color: {
       type: "varchar",
     },
-    calendar_id: {
-      type: "int",
-    },
   },
   relations: {
     calendar: {
-      target: "Calendar",
       type: "many-to-one",
-      joinColumn: { name: "calendar_id" },
-      inverseSide: "eventDetails",
+      target: "Calendar",
+      joinColumn: {
+        name: "calendar_id",
+      },
+      onDelete: "CASCADE",
     },
   },
 });

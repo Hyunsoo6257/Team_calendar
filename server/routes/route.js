@@ -20,14 +20,18 @@ module.exports = (app, AppDataSource) => {
     const calendarRepository = AppDataSource.getRepository(Calendar);
 
     try {
-      console.log("Received request body:", req.body);
+      console.log("Schedule create request:", req.body);
       const { calendarId } = req.body;
+
+      // 모든 캘린더 조회해서 확인
+      const allCalendars = await calendarRepository.find();
+      console.log("All calendars in DB:", allCalendars);
 
       const calendar = await calendarRepository.findOne({
         where: { id: calendarId },
       });
+      console.log("Found calendar:", calendar);
 
-      console.log("Calendar search result:", calendar);
       if (!calendar) {
         return res.status(400).json({
           success: false,
@@ -106,23 +110,21 @@ module.exports = (app, AppDataSource) => {
     }
   });
 
-  // DELETE /schedule/delete - Delete schedules for a specific color and date
+  // DELETE /schedule/delete - 특정 날짜의 모든 이벤트 삭제
   app.delete("/schedule/delete", async (req, res) => {
     const scheduleRepository = AppDataSource.getRepository(EventDetail);
-    const { date, color, calendarId } = req.body;
+    const { date, calendarId } = req.body;
 
     try {
-      if (!date || !color || !calendarId) {
+      if (!date || !calendarId) {
         return res.status(400).json({
           success: false,
-          message:
-            "Missing required fields: date, color, and calendarId required",
+          message: "Missing required fields: date and calendarId required",
         });
       }
 
       const result = await scheduleRepository.delete({
         date: date,
-        color: color,
         calendar: { id: calendarId },
       });
 
@@ -132,10 +134,9 @@ module.exports = (app, AppDataSource) => {
         result: result,
       });
     } catch (error) {
-      console.error("Schedule deletion error:", error);
       res.status(500).json({
         success: false,
-        message: error.message || "Internal server error",
+        message: error.message,
       });
     }
   });
@@ -145,6 +146,7 @@ module.exports = (app, AppDataSource) => {
     const calendarRepository = AppDataSource.getRepository(Calendar);
 
     try {
+      console.log("Creating new calendar...");
       const shareCode = Math.random().toString(36).substring(2, 8);
 
       const newCalendar = calendarRepository.create({
@@ -154,12 +156,15 @@ module.exports = (app, AppDataSource) => {
       });
 
       const calendar = await calendarRepository.save(newCalendar);
+      console.log("New calendar created:", calendar); // 새로 생성된 캘린더 정보
+
       res.status(200).json({
         success: true,
         shareCode: shareCode,
         calendarId: calendar.id,
       });
     } catch (error) {
+      console.error("Error creating calendar:", error);
       res.status(500).json({
         success: false,
         message: error.message,
@@ -209,22 +214,16 @@ module.exports = (app, AppDataSource) => {
   // 기본 캘린더 조회
   app.get("/calendar/default", async (req, res) => {
     const calendarRepository = AppDataSource.getRepository(Calendar);
-    console.log("1. Starting default calendar fetch");
+    console.log("Checking default calendar...");
 
     try {
-      // 모든 캘린더 조회
-      const allCalendars = await calendarRepository.find();
-      console.log("2. All calendars:", allCalendars);
-
-      // id가 1인 캘린더 찾기
       const defaultCalendar = await calendarRepository.findOne({
         where: { id: 1 },
       });
-
-      console.log("3. Default calendar search result:", defaultCalendar);
+      console.log("Default calendar found:", defaultCalendar);
 
       if (!defaultCalendar) {
-        console.log("4. No default calendar found, creating one");
+        console.log("No default calendar, creating one...");
         // 기본 캘린더가 없으면 생성
         const newDefaultCalendar = calendarRepository.create({
           shareCode: "TEST123",
@@ -246,7 +245,7 @@ module.exports = (app, AppDataSource) => {
         calendarId: defaultCalendar.id,
       });
     } catch (error) {
-      console.error("Error in default calendar API:", error);
+      console.error("Error in default calendar:", error);
       res.status(500).json({
         success: false,
         message: error.message,
@@ -281,6 +280,105 @@ module.exports = (app, AppDataSource) => {
         success: false,
         message: error.message,
       });
+    }
+  });
+
+  // 캘린더 공유 시 availableTimes도 함께 전달
+  app.get("/calendar/byShareCode/:shareCode", async (req, res) => {
+    const calendarRepository = AppDataSource.getRepository(Calendar);
+    const { shareCode } = req.params;
+
+    try {
+      const calendar = await calendarRepository.findOne({
+        where: { shareCode },
+      });
+
+      if (!calendar) {
+        return res.status(404).json({
+          success: false,
+          message: "Calendar not found",
+        });
+      }
+
+      const availableTimes = JSON.parse(calendar.availableTimes);
+
+      res.status(200).json({
+        success: true,
+        calendarId: calendar.id,
+        shareCode: calendar.shareCode,
+        availableTimes: availableTimes,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  });
+
+  app.get("/available-times", async (req, res) => {
+    try {
+      const calendarId = req.query.calendarId;
+
+      // 1. 예약된 시간을 Map으로 변환 (O(b))
+      const bookedMap = new Map();
+      const bookedTimes = await AppDataSource.getRepository(EventDetail).find({
+        where: { calendar_id: calendarId },
+        order: { date: "ASC", time: "ASC" },
+      });
+
+      bookedTimes.forEach((booking) => {
+        const key = `${booking.date}_${booking.time}`;
+        bookedMap.set(key, true);
+      });
+
+      // 2. 시간대 배열
+      const timeSlots = [
+        "06:00",
+        "07:00",
+        "08:00",
+        "09:00",
+        "10:00",
+        "11:00",
+        "12:00",
+        "13:00",
+        "14:00",
+        "15:00",
+        "16:00",
+        "17:00",
+        "18:00",
+        "19:00",
+        "20:00",
+        "21:00",
+        "22:00",
+        "23:00",
+        "24:00",
+        "25:00",
+      ];
+
+      const availableTimes = [];
+      const today = new Date();
+      const nextMonth = new Date(today.setMonth(today.getMonth() + 1));
+
+      // 3. O(d * t) 복잡도로 감소
+      for (let d = new Date(); d <= nextMonth; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split("T")[0];
+
+        timeSlots.forEach((time) => {
+          const key = `${dateStr}_${time}`;
+          if (!bookedMap.has(key)) {
+            // O(1) 검색
+            availableTimes.push({
+              date: dateStr,
+              time: time,
+            });
+          }
+        });
+      }
+
+      res.json({ success: true, availableTimes });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
     }
   });
 

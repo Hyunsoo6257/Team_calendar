@@ -3,10 +3,20 @@ import TimeButton from "./TimeButton";
 import Cookies from "js-cookie";
 import dayjs from "dayjs";
 
-const Popup = ({ selectedDate, handleClosePopup, calendarId }) => {
+const Popup = ({
+  selectedDate,
+  bookedTimes,
+  onClose,
+  calendarId,
+  onUpdateBookedTimes,
+}) => {
+  // API URL 설정 단순화
+  const API_URL = process.env.REACT_APP_API_URL;
+  console.log("Popup using API URL:", API_URL);
+
   console.log("Popup received calendarId:", calendarId); // 디버깅용
 
-  const [selectedColor, setSelectedColor] = useState(null);
+  const [selectedColor, setSelectedColor] = useState("blue");
   const [selectedTimes, setSelectedTimes] = useState([]);
   const [usedColors, setUsedColors] = useState([]);
   const [isColorLocked, setIsColorLocked] = useState(false);
@@ -24,7 +34,7 @@ const Popup = ({ selectedDate, handleClosePopup, calendarId }) => {
 
     const fetchData = async () => {
       try {
-        const colorResponse = await fetch("/colors/used", {
+        const colorResponse = await fetch(`${API_URL}/colors/used`, {
           credentials: "include",
         });
         if (colorResponse.ok) {
@@ -33,7 +43,7 @@ const Popup = ({ selectedDate, handleClosePopup, calendarId }) => {
         }
 
         const scheduleResponse = await fetch(
-          `/schedules?date=${formattedDate}&calendarId=${calendarId}`,
+          `${API_URL}/schedules?date=${formattedDate}&calendarId=${calendarId}`,
           {
             credentials: "include",
           }
@@ -86,90 +96,52 @@ const Popup = ({ selectedDate, handleClosePopup, calendarId }) => {
     setSelectedTimes([]);
   };
 
-  const handleApply = async () => {
-    if (!selectedColor) {
-      console.error("No color selected");
-      return;
-    }
-
+  // DB 업데이트 함수 정의
+  const updateDatabase = async () => {
     try {
-      if (selectedTimes.length === 0) {
-        console.log("Sending delete request for:", {
-          date: formattedDate,
-          color: selectedColor,
-        }); // Debug log
+      // 기존 일정 삭제
+      await fetch(`${API_URL}/schedule/delete`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          date: selectedDate,
+          calendarId: calendarId,
+        }),
+      });
 
-        const response = await fetch("/schedule/delete", {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            date: formattedDate,
+      // 선택된 시간이 있으면 새로운 일정 생성
+      if (selectedTimes.length > 0) {
+        // 각 선택된 시간에 대해 개별적으로 저장
+        for (const time of selectedTimes) {
+          const eventDetail = {
+            time: time,
+            date: selectedDate,
             color: selectedColor,
             calendarId: calendarId,
-          }),
-          credentials: "include",
-        });
+          };
 
-        const data = await response.json(); // Get the response data
-        console.log("Delete response:", data); // Debug log
-
-        if (!response.ok) {
-          throw new Error(data.message || "Failed to delete schedules");
-        }
-
-        handleClosePopup();
-      } else {
-        const eventDetails = selectedTimes.map((time) => ({
-          time: time,
-          date: formattedDate,
-          color: selectedColor,
-          calendarId: calendarId,
-        }));
-
-        for (const eventDetail of eventDetails) {
-          await createEvent(eventDetail);
+          await fetch(`${API_URL}/schedule/create`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(eventDetail),
+          });
         }
       }
     } catch (error) {
-      console.error("Error updating schedules:", error);
-      alert(`Failed to update schedule: ${error.message}`);
+      console.error("Error in updateDatabase:", error);
+      throw error;
     }
   };
 
-  const createEvent = async (eventDetail) => {
-    if (!calendarId || isNaN(calendarId)) {
-      console.error("Invalid calendarId:", calendarId);
-      return;
-    }
-
+  const handleApply = async () => {
     try {
-      console.log("Request payload:", eventDetail);
-
-      const response = await fetch("/schedule/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...eventDetail,
-          calendarId: Number(calendarId), // 명시적으로 숫자로 변환
-        }),
-        credentials: "include",
-      });
-
-      const data = await response.json();
-      console.log("Raw server response:", data);
-
-      if (!response.ok) {
-        throw new Error(data.message || `Server error: ${response.statusText}`);
-      }
-
-      return data;
+      await updateDatabase();
+      onUpdateBookedTimes(selectedTimes);
+      onClose();
     } catch (error) {
-      console.error("Detailed fetch error:", error);
-      throw error;
+      console.error("Error applying changes:", error);
     }
   };
 
@@ -191,6 +163,11 @@ const Popup = ({ selectedDate, handleClosePopup, calendarId }) => {
         disabled={isDisabled}
       />
     );
+  };
+
+  // bookedTimes를 이용해 UI 업데이트
+  const isTimeBooked = (time) => {
+    return bookedTimes.some((booking) => booking.time === time);
   };
 
   return (
@@ -235,7 +212,7 @@ const Popup = ({ selectedDate, handleClosePopup, calendarId }) => {
         </div>
         <button
           className="absolute top-2 right-2 text-gray-500"
-          onClick={handleClosePopup}
+          onClick={onClose}
         >
           &times;
         </button>

@@ -2,8 +2,13 @@ import React, { useState, useEffect } from "react";
 import dayjs from "dayjs";
 import Popup from "./Popup";
 import Cookies from "js-cookie";
+import AvailableTimesList from "./AvailableTimesList";
 
 const Calendar = () => {
+  // 환경 변수 체크를 단순화
+  console.log("=== Environment Variables Check ===");
+  console.log("REACT_APP_API_URL:", process.env.REACT_APP_API_URL);
+
   const today = dayjs();
   const [currentMonth, setCurrentMonth] = useState(today.month());
   const [currentYear, setCurrentYear] = useState(today.year());
@@ -12,54 +17,79 @@ const Calendar = () => {
   const [showResults, setShowResults] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
   const [calendarId, setCalendarId] = useState(null);
+  const [availableTimes, setAvailableTimes] = useState(() => {
+    const saved = localStorage.getItem("availableTimes");
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [showAvailableTimes, setShowAvailableTimes] = useState(false);
+  const [bookedTimes, setBookedTimes] = useState([]);
+  const [isDataChanged, setIsDataChanged] = useState(false);
 
   const startDay = dayjs(new Date(currentYear, currentMonth, 1)).day();
   const daysInMonth = dayjs(new Date(currentYear, currentMonth + 1, 0)).date();
 
-  const API_URL =
-    process.env.NODE_ENV === "production"
-      ? "http://time4team-env.eba-2mxpvpsk.ap-southeast-2.elasticbeanstalk.com" // 배포 환경
-      : process.env.REACT_APP_API_URL; // 개발 환경
+  // API URL 설정 단순화
+  const API_URL = process.env.REACT_APP_API_URL;
+  console.log("Using API URL:", API_URL);
 
   useEffect(() => {
-    // 필요한 정보 가져오기
-    const savedCalendarId = Cookies.get("calendarId"); // 쿠키에서 ID 확인
-    const pathParts = window.location.pathname.split("/"); // URL 경로 분리
-    const shareCode = pathParts[2]; // shareCode 추출 (/calendar/TEST123 형식)
+    // 기존 calendarId 초기화
+    setCalendarId(1); // 항상 1로 시작
 
-    // 조건 1: Share URL로 접속한 경우
+    // 필요한 정보 가져오기
+    const savedCalendarId = Cookies.get("calendarId");
+    const pathParts = window.location.pathname.split("/");
+    const shareCode = pathParts[2];
+
     if (shareCode) {
+      // Share URL로 접속한 경우
       fetch(`${API_URL}/calendar/byShareCode/${shareCode}`, {
         credentials: "include",
       })
         .then((response) => response.json())
         .then((data) => {
           if (data.success) {
-            Cookies.set("calendarId", String(data.calendarId), { expires: 7 });
-            setCalendarId(Number(data.calendarId));
+            Cookies.set("calendarId", "1"); // 항상 1로 설정
+            setCalendarId(1);
           }
         });
-    }
-    // 조건 2: 일반 접속 + 쿠키가 있는 경우
-    else if (savedCalendarId) {
-      setCalendarId(Number(savedCalendarId));
-    }
-    // 조건 3: 처음 접속 (쿠키도 없고 share URL도 아닌 경우)
-    else {
-      setCalendarId(1); // 기본 캘린더(id: 1) 사용
+    } else if (savedCalendarId) {
+      // 일반 접속 + 쿠키가 있는 경우
+      Cookies.set("calendarId", "1"); // 기존 쿠키 값을 1로 덮어씀
+      setCalendarId(1);
     }
   }, []);
 
-  const handleDateClick = (date) => {
-    // 날짜 문자열 직접 생성
+  useEffect(() => {
+    localStorage.setItem("availableTimes", JSON.stringify(availableTimes));
+  }, [availableTimes]);
+
+  const handleDateClick = async (date) => {
     const formattedDate = `${currentYear}-${String(currentMonth + 1).padStart(
       2,
       "0"
     )}-${String(date).padStart(2, "0")}`;
 
-    setSelectedDate(formattedDate);
-    setShowPopup(true);
-    console.log("Selected date:", formattedDate); // 디버깅용
+    // API URL 디버깅
+    console.log("API URL:", API_URL);
+    console.log(
+      "Full Request URL:",
+      `${API_URL}/schedules?date=${formattedDate}&calendarId=${calendarId}`
+    );
+    console.log("calendarId:", calendarId);
+
+    try {
+      const response = await fetch(
+        `${API_URL}/schedules?date=${formattedDate}&calendarId=${calendarId}`,
+        { credentials: "include" }
+      );
+      const data = await response.json();
+      setBookedTimes(data);
+      setSelectedDate(formattedDate);
+      setShowPopup(true);
+    } catch (error) {
+      console.error("Error details:", error);
+    }
   };
 
   const handlePrevMonth = () => {
@@ -80,10 +110,34 @@ const Calendar = () => {
     }
   };
   const handleClosePopup = () => {
+    if (isDataChanged) {
+      const fetchBookedTimes = async () => {
+        const response = await fetch(
+          `${API_URL}/schedules?date=${selectedDate}&calendarId=${calendarId}`,
+          { credentials: "include" }
+        );
+        const data = await response.json();
+        setBookedTimes(data);
+      };
+      fetchBookedTimes();
+    }
     setShowPopup(false);
   };
-  const handleFindAvailableTime = () => {
-    setShowResults(true);
+  const handleFindAvailableTime = async () => {
+    try {
+      const response = await fetch(
+        `${API_URL}/available-times?calendarId=${calendarId}`,
+        { credentials: "include" }
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        setAvailableTimes(data.availableTimes); // 상태 업데이트
+        setShowAvailableTimes(true);
+      }
+    } catch (error) {
+      console.error("Error fetching available times:", error);
+    }
   };
   const handleShare = async () => {
     try {
@@ -185,11 +239,13 @@ const Calendar = () => {
           Find the available time
         </button>
       </div>
-      {showPopup && selectedDate && calendarId && !isNaN(calendarId) && (
+      {showPopup && (
         <Popup
           selectedDate={selectedDate}
-          handleClosePopup={handleClosePopup}
+          bookedTimes={bookedTimes}
+          onClose={handleClosePopup}
           calendarId={calendarId}
+          onUpdateBookedTimes={setBookedTimes}
         />
       )}
       {/* 디버깅용 */}
@@ -235,6 +291,14 @@ const Calendar = () => {
             </button>
           </div>
         </div>
+      )}
+
+      {/* 가능한 시간 목록 */}
+      {showAvailableTimes && (
+        <AvailableTimesList
+          availableTimes={availableTimes}
+          onClose={() => setShowAvailableTimes(false)}
+        />
       )}
     </div>
   );
