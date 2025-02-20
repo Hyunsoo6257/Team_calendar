@@ -320,10 +320,12 @@ module.exports = (app, AppDataSource) => {
     try {
       const calendarId = req.query.calendarId;
 
-      // 1. 예약된 시간을 Map으로 변환 (O(b))
+      // 1. 예약된 시간을 Map으로 변환
       const bookedMap = new Map();
       const bookedTimes = await AppDataSource.getRepository(EventDetail).find({
-        where: { calendar_id: calendarId },
+        where: {
+          calendar: { id: calendarId },
+        },
         order: { date: "ASC", time: "ASC" },
       });
 
@@ -360,20 +362,42 @@ module.exports = (app, AppDataSource) => {
       const today = new Date();
       const nextMonth = new Date(today.setMonth(today.getMonth() + 1));
 
-      // 3. O(d * t) 복잡도로 감소
+      // 날짜별로 시간 그룹화 및 병합
+      const groupedTimes = new Map(); // 날짜별 시간 저장
+
       for (let d = new Date(); d <= nextMonth; d.setDate(d.getDate() + 1)) {
         const dateStr = d.toISOString().split("T")[0];
+        const availableTimesForDate = [];
 
         timeSlots.forEach((time) => {
           const key = `${dateStr}_${time}`;
           if (!bookedMap.has(key)) {
-            // O(1) 검색
-            availableTimes.push({
-              date: dateStr,
-              time: time,
-            });
+            availableTimesForDate.push(time);
           }
         });
+
+        // 연속된 시간 병합
+        if (availableTimesForDate.length > 0) {
+          let start = availableTimesForDate[0];
+          let current = start;
+
+          for (let i = 1; i <= availableTimesForDate.length; i++) {
+            const time = availableTimesForDate[i];
+            const currentHour = parseInt(current.split(":")[0]);
+            const nextHour = time ? parseInt(time.split(":")[0]) : -1;
+
+            if (nextHour !== currentHour + 1) {
+              // 연속되지 않은 시간이면 저장
+              availableTimes.push({
+                date: dateStr,
+                startTime: start,
+                endTime: current,
+              });
+              start = time;
+            }
+            current = time;
+          }
+        }
       }
 
       res.json({ success: true, availableTimes });
