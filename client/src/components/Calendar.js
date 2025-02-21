@@ -5,7 +5,7 @@ import Cookies from "js-cookie";
 import AvailableTimesList from "./AvailableTimesList";
 
 const Calendar = () => {
-  // 환경 변수 체크를 단순화
+  // Simplify environment variable check
   console.log("=== Environment Variables Check ===");
   console.log("REACT_APP_API_URL:", process.env.REACT_APP_API_URL);
 
@@ -28,34 +28,34 @@ const Calendar = () => {
   const startDay = dayjs(new Date(currentYear, currentMonth, 1)).day();
   const daysInMonth = dayjs(new Date(currentYear, currentMonth + 1, 0)).date();
 
-  // API URL 설정 단순화
+  // Simplify API URL setup
   const API_URL = process.env.REACT_APP_API_URL;
   console.log("Using API URL:", API_URL);
 
   useEffect(() => {
-    // 기존 calendarId 초기화
-    setCalendarId(1); // 항상 1로 시작
+    // Initialize default calendarId
+    setCalendarId(1); // Always start with 1
 
-    // 필요한 정보 가져오기
+    // Get necessary information
     const savedCalendarId = Cookies.get("calendarId");
     const pathParts = window.location.pathname.split("/");
     const shareCode = pathParts[2];
 
     if (shareCode) {
-      // Share URL로 접속한 경우
+      // When accessing via Share URL
       fetch(`${API_URL}/calendar/byShareCode/${shareCode}`, {
         credentials: "include",
       })
         .then((response) => response.json())
         .then((data) => {
           if (data.success) {
-            Cookies.set("calendarId", "1"); // 항상 1로 설정
+            Cookies.set("calendarId", "1"); // Always set to 1
             setCalendarId(1);
           }
         });
     } else if (savedCalendarId) {
-      // 일반 접속 + 쿠키가 있는 경우
-      Cookies.set("calendarId", "1"); // 기존 쿠키 값을 1로 덮어씀
+      // Regular access + existing cookie
+      Cookies.set("calendarId", "1"); // Overwrite existing cookie to 1
       setCalendarId(1);
     }
   }, []);
@@ -162,7 +162,6 @@ const Calendar = () => {
       });
 
       const data = await response.json();
-      console.log("Create calendar response:", data); // 디버깅용
 
       if (data.success) {
         Cookies.set("calendarId", String(data.calendarId), { expires: 7 });

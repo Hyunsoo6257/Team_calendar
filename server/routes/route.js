@@ -147,7 +147,7 @@ module.exports = (app, AppDataSource) => {
 
     try {
       console.log("Creating new calendar...");
-      const shareCode = Math.random().toString(36).substring(2, 8);
+      const shareCode = Math.random().toString(36).substring(2, 8); // 랜덤 shareCode 생성
 
       const newCalendar = calendarRepository.create({
         shareCode: shareCode,
@@ -155,13 +155,13 @@ module.exports = (app, AppDataSource) => {
         maxUsers: 5,
       });
 
-      const calendar = await calendarRepository.save(newCalendar);
-      console.log("New calendar created:", calendar); // 새로 생성된 캘린더 정보
+      const calendar = await calendarRepository.save(newCalendar); // DB에 저장
+      // TypeORM이 자동으로 새로운 ID 할당
 
       res.status(200).json({
         success: true,
         shareCode: shareCode,
-        calendarId: calendar.id,
+        calendarId: calendar.id, // 자동 생성된 ID 반환
       });
     } catch (error) {
       console.error("Error creating calendar:", error);
@@ -320,7 +320,7 @@ module.exports = (app, AppDataSource) => {
     try {
       const calendarId = req.query.calendarId;
 
-      // 1. 예약된 시간을 Map으로 변환
+      // 1. Convert booked times to Map
       const bookedMap = new Map();
       const bookedTimes = await AppDataSource.getRepository(EventDetail).find({
         where: {
@@ -334,7 +334,7 @@ module.exports = (app, AppDataSource) => {
         bookedMap.set(key, true);
       });
 
-      // 2. 시간대 배열
+      // 2. Time slots array
       const timeSlots = [
         "06:00",
         "07:00",
@@ -362,8 +362,8 @@ module.exports = (app, AppDataSource) => {
       const today = new Date();
       const nextMonth = new Date(today.setMonth(today.getMonth() + 1));
 
-      // 날짜별로 시간 그룹화 및 병합
-      const groupedTimes = new Map(); // 날짜별 시간 저장
+      // Group and merge times by date
+      const groupedTimes = new Map(); // Store times by date
 
       for (let d = new Date(); d <= nextMonth; d.setDate(d.getDate() + 1)) {
         const dateStr = d.toISOString().split("T")[0];
@@ -376,7 +376,7 @@ module.exports = (app, AppDataSource) => {
           }
         });
 
-        // 연속된 시간 병합
+        // Merge consecutive times
         if (availableTimesForDate.length > 0) {
           let start = availableTimesForDate[0];
           let current = start;
@@ -387,7 +387,7 @@ module.exports = (app, AppDataSource) => {
             const nextHour = time ? parseInt(time.split(":")[0]) : -1;
 
             if (nextHour !== currentHour + 1) {
-              // 연속되지 않은 시간이면 저장
+              // Save when times are not consecutive
               availableTimes.push({
                 date: dateStr,
                 startTime: start,

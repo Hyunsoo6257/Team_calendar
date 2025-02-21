@@ -10,11 +10,11 @@ const Popup = ({
   calendarId,
   onUpdateBookedTimes,
 }) => {
-  // API URL 설정 단순화
+  // Simplify API URL setup
   const API_URL = process.env.REACT_APP_API_URL;
   console.log("Popup using API URL:", API_URL);
 
-  console.log("Popup received calendarId:", calendarId); // 디버깅용
+  console.log("Popup received calendarId:", calendarId); // For debugging
 
   const [selectedColor, setSelectedColor] = useState("blue");
   const [selectedTimes, setSelectedTimes] = useState([]);
@@ -22,7 +22,7 @@ const Popup = ({
   const [isColorLocked, setIsColorLocked] = useState(false);
   const [existingTimes, setExistingTimes] = useState([]);
 
-  // 날짜 포맷 변경
+  // Change date format
   const formattedDate = dayjs(selectedDate).format("YYYY-MM-DD");
 
   useEffect(() => {
@@ -96,10 +96,10 @@ const Popup = ({
     setSelectedTimes([]);
   };
 
-  // DB 업데이트 함수 정의
+  // Database update function
   const updateDatabase = async () => {
     try {
-      // 기존 일정 삭제
+      // Delete existing schedules
       await fetch(`${API_URL}/schedule/delete`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -110,9 +110,9 @@ const Popup = ({
         }),
       });
 
-      // 선택된 시간이 있으면 새로운 일정 생성
+      // Create new schedules if times are selected
       if (selectedTimes.length > 0) {
-        // 각 선택된 시간에 대해 개별적으로 저장
+        // Save each selected time individually
         for (const time of selectedTimes) {
           const eventDetail = {
             time: time,
@@ -165,7 +165,7 @@ const Popup = ({
     );
   };
 
-  // bookedTimes를 이용해 UI 업데이트
+  // Update UI using bookedTimes
   const isTimeBooked = (time) => {
     return bookedTimes.some((booking) => booking.time === time);
   };
