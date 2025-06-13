@@ -1,72 +1,54 @@
-# Getting Started with Create React App
+# TIME 4 TEAM Web App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+![Project_1](https://github.com/user-attachments/assets/1a1af200-18ad-4c48-b21f-ed113a1a782d)
 
-## Available Scripts
+## Description
+Built a full-stack scheduling application from concept to deployment, enabling teams to efficiently find common available time slots by creating and sharing calendar URLs.
 
-In the project directory, you can run:
+## Duration
+2025.01 ~ 2025.02
 
-### `npm start`
+## Technology
+- React
+- Node.js
+- MySQL
+- AWS EC2
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Member
+- Full stack: 1
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## How to Use
 
-### `npm test`
+### 1. Pick the Color
+Choose one of five colors (red, yellow, green, blue, purple) to present yourself in the shared calendar.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### 2. Select the Time
+Click on the time slots between 6:00 am and 25:00 am to mark when you are not available.
 
-### `npm run build`
+### 3. See the Available Time
+View common available time slots that work for all users in the shared calendar.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Database Structure
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### Schedule Management
+- `server/entity/Calendar.js`: Calendar entity with shareCode and user management
+- `server/entity/EventDetail.js`: Event details with time, date and color
+- `server/entity/Color.js`: Color management for user identification
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Feature that let users manage personal events - add, view, delete within the calendar with each color
 
-### `npm run eject`
+**Relevant file**: `server/route.js`
+- `/schedule/create`: endpoint for adding events
+- `/schedule/delete`: endpoint for removing events
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Automatic Availability Calculation
+Developed an algorithm that automatically calculates common available times by comparing users' unavailable times, analyzing hourly blocks (6 AM to 1 AM) over 30 days to identify overlapping free slots.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+**Relevant file**: `server/route/route.js/available-times`: endpoint with the availability calculation
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### Shared Calendar System
+Developed a full-stack shared calendar system that allows users to create and join a calendar using a unique shareCode. Implemented a user limit of five per calendar and stored each user's calendarId and group available Times to manage shared schedules efficiently.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
-# Time4Team
-# Team_calendar
+**Relevant file**: `server/routes/route.js`
+- `/calendar/create`: endpoint that generates a unique shareCode
+- `/calendar/join/:sharecode`: endpoint for joining calendars
