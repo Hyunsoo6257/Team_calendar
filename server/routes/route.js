@@ -23,7 +23,6 @@ module.exports = (app, AppDataSource) => {
       console.log("Schedule create request:", req.body);
       const { calendarId } = req.body;
 
-      // 모든 캘린더 조회해서 확인
       const allCalendars = await calendarRepository.find();
       console.log("All calendars in DB:", allCalendars);
 
@@ -100,7 +99,7 @@ module.exports = (app, AppDataSource) => {
       const schedules = await scheduleRepository.find({
         where: {
           date,
-          calendar: { id: req.query.calendarId }, // 캘린더 ID로 필터링 추가
+          calendar: { id: req.query.calendarId }, 
         },
         select: ["time", "color"],
       });
@@ -110,7 +109,7 @@ module.exports = (app, AppDataSource) => {
     }
   });
 
-  // DELETE /schedule/delete - 특정 날짜의 모든 이벤트 삭제
+  // DELETE /schedule/delete
   app.delete("/schedule/delete", async (req, res) => {
     const scheduleRepository = AppDataSource.getRepository(EventDetail);
     const { date, calendarId } = req.body;
@@ -147,7 +146,7 @@ module.exports = (app, AppDataSource) => {
 
     try {
       console.log("Creating new calendar...");
-      const shareCode = Math.random().toString(36).substring(2, 8); // 랜덤 shareCode 생성
+      const shareCode = Math.random().toString(36).substring(2, 8); // create random shareCode
 
       const newCalendar = calendarRepository.create({
         shareCode: shareCode,
@@ -155,13 +154,12 @@ module.exports = (app, AppDataSource) => {
         maxUsers: 5,
       });
 
-      const calendar = await calendarRepository.save(newCalendar); // DB에 저장
-      // TypeORM이 자동으로 새로운 ID 할당
+      const calendar = await calendarRepository.save(newCalendar);
 
       res.status(200).json({
         success: true,
         shareCode: shareCode,
-        calendarId: calendar.id, // 자동 생성된 ID 반환
+        calendarId: calendar.id,
       });
     } catch (error) {
       console.error("Error creating calendar:", error);
@@ -211,7 +209,7 @@ module.exports = (app, AppDataSource) => {
     }
   });
 
-  // 기본 캘린더 조회
+
   app.get("/calendar/default", async (req, res) => {
     const calendarRepository = AppDataSource.getRepository(Calendar);
     console.log("Checking default calendar...");
@@ -224,7 +222,7 @@ module.exports = (app, AppDataSource) => {
 
       if (!defaultCalendar) {
         console.log("No default calendar, creating one...");
-        // 기본 캘린더가 없으면 생성
+
         const newDefaultCalendar = calendarRepository.create({
           shareCode: "TEST123",
           userCount: 1,
@@ -253,7 +251,6 @@ module.exports = (app, AppDataSource) => {
     }
   });
 
-  // 캘린더 shareCode로 접근
   app.get("/calendar/:shareCode", async (req, res) => {
     const calendarRepository = AppDataSource.getRepository(Calendar);
     const { shareCode } = req.params;
@@ -283,7 +280,6 @@ module.exports = (app, AppDataSource) => {
     }
   });
 
-  // 캘린더 공유 시 availableTimes도 함께 전달
   app.get("/calendar/byShareCode/:shareCode", async (req, res) => {
     const calendarRepository = AppDataSource.getRepository(Calendar);
     const { shareCode } = req.params;
